@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1>Bestände - {{ shop.name }}</h1>
+    <div class="accordion" id="accordionExample">
+        {% for category, items in items_grouped.items() %}
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="heading{{ loop.index }}">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
+                    {{ category }}
+                </button>
+            </h2>
+            <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="heading{{ loop.index }}" data-bs-parent="#accordionExample">
+                <div class="accordion-body">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Artikel</th>
+                                <th>Bestand</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item_info in items %}
+                            <tr>
+                                <td>{{ item_info.item.name }}</td>
+                                <td id="stock-{{ item_info.item.id }}">{{ item_info.quantity }}</td>
+                                <td>
+                                    <button class="btn btn-primary btn-sm reduce-stock" data-item-id="{{ item_info.item.id }}">Ausgabe</button>
+                                    <button class="btn btn-success btn-sm add-stock" data-item-id="{{ item_info.item.id }}">Wareneingang</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <a href="/shops" class="btn btn-secondary mt-3">Zurück</a>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Ausgabe-Button
+        const reduceStockButtons = document.querySelectorAll('.reduce-stock');
+        reduceStockButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const itemId = this.getAttribute('data-item-id');
+                fetch('/shops/adjust_stock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        item_id: itemId,
+                        adjustment: -1,
+                        shop_id: {{ shop.id }}
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.new_quantity !== undefined) {
+                        document.getElementById(`stock-${itemId}`).innerText = data.new_quantity;
+                    } else {
+                        alert('Fehler: ' + data.error);
+                    }
+                })
+                .catch(() => {
+                    alert('Fehler beim Aktualisieren des Bestands.');
+                });
+            });
+        });
+
+        // Wareneingang-Button
+        const addStockButtons = document.querySelectorAll('.add-stock');
+        addStockButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const itemId = this.getAttribute('data-item-id');
+                const newQuantity = prompt('Bitte geben Sie die neue Menge ein:');
+                if (newQuantity !== null) {
+                    fetch('/shops/add_stock', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            item_id: itemId,
+                            adjustment: parseInt(newQuantity),
+                            shop_id: {{ shop.id }}
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.new_quantity !== undefined) {
+                            document.getElementById(`stock-${itemId}`).innerText = data.new_quantity;
+                        } else {
+                            alert('Fehler: ' + data.error);
+                        }
+                    })
+                    .catch(() => {
+                        alert('Fehler beim Aktualisieren des Bestands.');
+                    });
+                }
+            });
+        });
+    });
+</script>
+
+{% endblock %}
